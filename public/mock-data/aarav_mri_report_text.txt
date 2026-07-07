@@ -1,0 +1,43 @@
+RADIOLOGY REPORT
+
+Patient Name: Aarav Sen
+Date of Birth: 22/11/1986
+Date of Examination: 15/06/2024
+Ordering Physician: Dr. Vikram Mehta, MS Orthopedics
+Referring Clinic: Mumbai Sports Medicine Center
+Examination: MRI Right Knee without contrast
+Accession No: MRI-2024-08834
+
+=== CLINICAL HISTORY ===
+38-year-old male with acute right knee injury sustained during a cricket match. Patient reports hearing a "pop" followed by immediate swelling and instability. Unable to bear weight. Mechanical symptoms of locking reported.
+
+=== TECHNIQUE ===
+MRI of the right knee was performed on a 3.0 Tesla scanner using standard knee protocol including sagittal PD, coronal PD fat-sat, axial PD fat-sat, sagittal T2, and coronal T1 sequences.
+
+=== FINDINGS ===
+
+Anterior Cruciate Ligament (ACL):
+There is COMPLETE DISRUPTION of the anterior cruciate ligament. The ligament fibers are discontinuous with abnormal signal intensity throughout. The tibial attachment site shows edema and hemorrhage.
+
+Posterior Cruciate Ligament (PCL):
+Intact. Normal signal intensity and morphology.
+
+Medial Meniscus:
+There is a COMPLEX TEAR of the posterior horn of the medial meniscus extending to the inferior articular surface. The tear measures approximately 12mm in length.
+
+Lateral Meniscus:
+Intact. No evidence of tear.
+
+=== IMPRESSION ===
+1. COMPLETE TEAR OF THE ANTERIOR CRUCIATE LIGAMENT (ACL) of the right knee.
+2. COMPLEX TEAR OF THE POSTERIOR HORN OF THE MEDIAL MENISCUS with parameniscal cyst.
+3. Grade I MCL sprain.
+4. Moderate joint effusion.
+
+=== RECOMMENDATION ===
+Orthopedic surgical consultation recommended for ACL reconstruction and meniscal repair/meniscectomy.
+
+Reported by:
+Dr. Sunita Patel, MD (Radiology)
+Mumbai Diagnostic Imaging Center
+Date of Report: 16/06/2024
