@@ -505,17 +505,58 @@ export default function Home() {
                   </CardContent>
                 </Card>
 
-                {/* Audio Briefing */}
-                {context.logs && (
+                {/* Financial Summary Breakdown */}
+                {context.financialSummary && (
+                  <Card>
+                    <CardHeader><CardTitle>📋 Financial Summary Breakdown</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                      {context.financialSummary.breakdown.map((b, i) => (
+                        <div key={i} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>{b.category}</span>
+                            <span className="font-semibold">{fmt(b.amount)} ({b.percentage}%)</span>
+                          </div>
+                          <div className="h-3 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{
+                                width: `${Math.max(b.percentage, 2)}%`,
+                                backgroundColor: i === 0 ? '#10b981' : i === 1 ? '#3b82f6' : '#ef4444',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <Separator />
+                      <div className="flex justify-between text-sm font-bold">
+                        <span>COB Dual-Coverage Savings</span>
+                        <span className="text-amber-400">{fmt(context.financialSummary.savingsFromCOB)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Audio Briefing — dynamically constructed from actual calculation data */}
+                {context.cobResult && (
                   <AudioBriefingPlayer
-                    script={context.logs.find(l => l.agent === 'OutputAgent' && l.action === 'AI_AUDIO')?.detail || ''}
-                    sections={[
-                      { title: 'Introduction', content: `Hello Aarav and Priya. Here is your insurance coordination of benefits analysis.` },
-                      { title: "Aarav's Surgery", content: `Aarav's ACL reconstruction costs ${fmt(context.cobResult.calculations.find((c: ClaimCalculation) => c.patientName.includes('Aarav'))?.totalCharges || 450000)}. Primary Plan B pays ${fmt(context.cobResult.calculations.find((c: ClaimCalculation) => c.patientName.includes('Aarav'))?.primaryPlan.planPays || 0)}. Secondary Plan A pays ${fmt(context.cobResult.calculations.find((c: ClaimCalculation) => c.patientName.includes('Aarav'))?.secondaryPlan.planPays || 0)}.` },
-                      { title: "Priya's PT", content: `Priya's physical therapy costs ${fmt(context.cobResult.calculations.find((c: ClaimCalculation) => c.patientName.includes('Priya'))?.totalCharges || 30000)}. Primary Plan A covers most after deductible.` },
-                      { title: 'Summary', content: `Total out-of-pocket: ${fmt(context.cobResult.totalPatientOOP)}. COB savings: ${fmt(context.cobResult.totalSavings)}.` },
-                      { title: 'Next Steps', content: 'Submit pre-authorization letters to both insurers before scheduling surgery.' },
-                    ]}
+                    script=""
+                    sections={(() => {
+                      const calcs = context.cobResult!.calculations as ClaimCalculation[];
+                      const sections: { title: string; content: string }[] = [
+                        { title: 'Introduction', content: `Hello. Here is your insurance coordination of benefits analysis for ${[...new Set(calcs.map(c => c.patientName))].join(' and ')}.` },
+                      ];
+                      calcs.forEach((c: ClaimCalculation) => {
+                        sections.push({
+                          title: `${c.patientName}'s Claim`,
+                          content: `${c.patientName}'s total charges are ${fmt(c.totalCharges)}. The primary plan (${c.primaryPlan.planName}) pays ${fmt(c.primaryPlan.planPays)} after a ${fmt(c.primaryPlan.deductibleApplied)} deductible at ${c.primaryPlan.coinsuranceRate}% coinsurance. The secondary plan (${c.secondaryPlan.planName}) picks up an additional ${fmt(c.secondaryPlan.planPays)}. ${c.patientName}'s out-of-pocket is ${fmt(c.totalPatientOOP)}.`,
+                        });
+                      });
+                      sections.push(
+                        { title: 'Total Summary', content: `Across all claims: total charges ${fmt(context.cobResult!.totalCharges)}, insurance covers ${fmt(context.cobResult!.totalInsurancePaid)}, your combined out-of-pocket is ${fmt(context.cobResult!.totalPatientOOP)}. Dual coverage saved you ${fmt(context.cobResult!.totalSavings)}.` },
+                        { title: 'Next Steps', content: 'Submit the pre-authorization letters generated in the Letters tab to both insurers. For each patient, submit to the primary insurer first, then the secondary insurer with the primary EOB attached.' },
+                      );
+                      return sections;
+                    })()}
                   />
                 )}
 
