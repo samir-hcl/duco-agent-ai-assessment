@@ -45,8 +45,10 @@ Estimated Total Cost: ₹${claim.totalCharges.toLocaleString('en-IN')}
 
 ━━━ CLINICAL JUSTIFICATION ━━━
 The proposed procedure(s) are medically necessary based on clinical findings:
-${claim.providerType.includes('Surgery') ? '- MRI confirms complete ACL tear and medial meniscus tear requiring surgical intervention\n- Conservative management is not appropriate for the severity of injury' : '- Physical therapy is prescribed for chronic low back pain management and functional restoration'}
-- The treating physician recommends the above procedure(s) as standard of care.
+${claim.diagnosisCodes.map(d => `- Diagnosis ${d.code} (${d.description}) supports the need for intervention.`).join('\n')}
+${claim.procedureCodes.map(p => `- Procedure ${p.code} (${p.description}) is indicated as standard of care for the documented diagnosis.`).join('\n')}
+${claim.rawExtractedText ? `- Supporting clinical documentation: ${claim.rawExtractedText.substring(0, 200)}${claim.rawExtractedText.length > 200 ? '...' : ''}` : '- Clinical documentation is on file with the treating provider.'}
+- The treating physician recommends the above procedure(s) as medically necessary.
 
 ━━━ COORDINATION OF BENEFITS (COB) NOTICE ━━━
 This is a ${isPrimary ? 'PRIMARY' : 'SECONDARY'} claim under Coordination of Benefits.
