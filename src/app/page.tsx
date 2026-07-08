@@ -188,6 +188,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [activeTab, setActiveTab] = useState('upload');
+  const [showApproval, setShowApproval] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getFileType = (file: File): UploadedFile['type'] => {
@@ -218,11 +219,34 @@ export default function Home() {
   }, []);
 
   const loadDemoFiles = async () => {
+    // Fetch actual committed sample files so the full pipeline is exercised
+    const fetchAsBase64 = async (url: string): Promise<string> => {
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1] || '');
+          reader.readAsDataURL(blob);
+        });
+      } catch { return ''; }
+    };
+    const fetchAsText = async (url: string): Promise<string> => {
+      try { const res = await fetch(url); return await res.text(); } catch { return ''; }
+    };
+
+    const [invoiceData, estimateData, mriText, queryText] = await Promise.all([
+      fetchAsBase64('/mock-data/priya_pt_invoice.jpg'),
+      fetchAsBase64('/mock-data/aarav_surgeon_estimate.jpg'),
+      fetchAsText('/mock-data/aarav_mri_report_text.txt'),
+      fetchAsText('/mock-data/user_query.txt'),
+    ]);
+
     setFiles([
-      { id: 'demo-1', name: 'priya_pt_invoice.png', type: 'image', mimeType: 'image/png', size: 0, data: '', status: 'pending' },
-      { id: 'demo-2', name: 'aarav_mri_report.pdf', type: 'pdf', mimeType: 'application/pdf', size: 0, data: '', status: 'pending' },
-      { id: 'demo-3', name: 'surgeon_estimate.jpg', type: 'image', mimeType: 'image/jpeg', size: 0, data: '', status: 'pending' },
-      { id: 'demo-4', name: 'user_query.txt', type: 'text', mimeType: 'text/plain', size: 0, data: 'Hi DuCO-Agent, I need to get my knee operated on soon, and Priya has some physical therapy bills lying around. We have Insurer1 (Plan A) and Insurer2 (Plan B). Can you help us figure out which plan pays first for my surgery and her bills? How much will we actually have to pay out of our own pocket? Also, we need the pre-auth letters generated for both insurers so we don\'t end up with a claim rejection. Please help!', status: 'pending' },
+      { id: 'demo-1', name: 'priya_pt_invoice.jpg', type: 'image', mimeType: 'image/jpeg', size: invoiceData.length, data: invoiceData, status: 'pending' },
+      { id: 'demo-2', name: 'aarav_mri_report.pdf', type: 'pdf', mimeType: 'application/pdf', size: mriText.length, data: mriText, status: 'pending' },
+      { id: 'demo-3', name: 'aarav_surgeon_estimate.jpg', type: 'image', mimeType: 'image/jpeg', size: estimateData.length, data: estimateData, status: 'pending' },
+      { id: 'demo-4', name: 'user_query.txt', type: 'text', mimeType: 'text/plain', size: queryText.length, data: queryText, status: 'pending' },
     ]);
   };
 
@@ -240,7 +264,12 @@ export default function Home() {
       const data = await response.json();
       setContext(data.context);
       setProgress(100);
-      setActiveTab('results');
+      // Show approval gate before revealing results
+      if (data.context?.cobResult) {
+        setShowApproval(true);
+      } else {
+        setActiveTab('results');
+      }
     } catch (error) {
       console.error('Analysis failed:', error);
       alert(`Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -249,11 +278,90 @@ export default function Home() {
     }
   };
 
+  const handleApproval = (approved: boolean) => {
+    setShowApproval(false);
+    if (approved && context) {
+      // Log the human approval
+      const updatedContext = { ...context };
+      updatedContext.logs = [...context.logs, {
+        timestamp: new Date().toISOString(),
+        agent: 'HumanApprover',
+        action: 'APPROVAL_GRANTED',
+        detail: '✅ Human reviewer explicitly approved the COB analysis and letter generation.',
+        status: 'success' as const,
+      }];
+      setContext(updatedContext);
+      setActiveTab('results');
+    } else if (context) {
+      const updatedContext = { ...context };
+      updatedContext.logs = [...context.logs, {
+        timestamp: new Date().toISOString(),
+        agent: 'HumanApprover',
+        action: 'APPROVAL_REJECTED',
+        detail: '❌ Human reviewer rejected the analysis. Results available for review only.',
+        status: 'error' as const,
+      }];
+      updatedContext.errors = [...context.errors, 'Analysis rejected by human reviewer — outputs may require revision'];
+      setContext(updatedContext);
+      setActiveTab('results');
+    }
+  };
+
   const removeFile = (id: string) => setFiles(prev => prev.filter(f => f.id !== id));
 
   const currentStateIndex = context ? AGENT_STATES.findIndex(s => s.state === context.state) : -1;
 
   return (
+    <>
+    {/* ═══ HUMAN APPROVAL GATE MODAL ═══ */}
+    {showApproval && context?.cobResult && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" id="approval-gate-modal">
+        <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-8 space-y-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="text-center space-y-2">
+            <div className="text-5xl">⏸️</div>
+            <h2 className="text-2xl font-bold">Human Approval Required</h2>
+            <p className="text-muted-foreground text-sm">Review the COB analysis below before generating pre-authorization letters and final outputs.</p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+              <span className="text-sm text-muted-foreground">Total Charges</span>
+              <span className="font-bold text-lg">{fmt(context.cobResult.totalCharges)}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-emerald-500/10">
+              <span className="text-sm text-muted-foreground">Insurance Covers</span>
+              <span className="font-bold text-lg text-emerald-400">{fmt(context.cobResult.totalInsurancePaid)}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-red-500/10">
+              <span className="text-sm text-muted-foreground">Your Out-of-Pocket</span>
+              <span className="font-bold text-lg text-red-400">{fmt(context.cobResult.totalPatientOOP)}</span>
+            </div>
+            {context.errors.length > 0 && (
+              <div className="p-3 rounded-lg bg-amber-500/10 text-amber-400 text-sm">
+                ⚠️ {context.errors.length} verification issue(s) found — review recommended
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              id="approval-reject-btn"
+              onClick={() => handleApproval(false)}
+              className="flex-1 px-4 py-3 rounded-xl border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors font-medium"
+            >
+              ✕ Reject
+            </button>
+            <button
+              id="approval-approve-btn"
+              onClick={() => handleApproval(true)}
+              className="flex-1 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium transition-colors shadow-lg"
+            >
+              ✓ Approve & Generate Letters
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-xl sticky top-0 z-50">
@@ -606,5 +714,6 @@ export default function Home() {
         <p className="text-xs mt-1">Built with Next.js, shadcn/ui, and Google Gemini 2.0 Flash</p>
       </footer>
     </div>
+    </>
   );
 }
