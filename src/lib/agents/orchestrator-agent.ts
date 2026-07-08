@@ -151,14 +151,28 @@ export async function runOrchestrator(files: UploadedFile[]): Promise<AgentConte
 
           if (retryCount < MAX_RETRIES) {
             retryCount++;
-            context.logs.push(log('RETRY_DECISION', `Verification failed with ${v.issues.length} issue(s). Attempting retry ${retryCount}/${MAX_RETRIES}...`, 'warning'));
-            messages.push(createMessage('OrchestratorAgent', 'COBAgent', 'RETRY', { attempt: retryCount }));
+            context.logs.push(log('RETRY_DECISION', `Verification failed with ${v.issues.length} issue(s). Attempting corrective retry ${retryCount}/${MAX_RETRIES}...`, 'warning'));
+            messages.push(createMessage('OrchestratorAgent', 'COBAgent', 'RETRY', { attempt: retryCount, strategy: 'STRIP_INCOMPATIBLE_CODES' }));
 
-            // Re-run COB with original claims (in a real system, we might adjust parameters)
+            // Corrective action: strip incompatible procedure codes from claims
+            // that caused compatibility issues, then re-run COB
+            const compatIssues = v.issues.filter(i => i.includes('without') || i.includes('present'));
+            if (compatIssues.length > 0) {
+              context.logs.push(log('CORRECTIVE_ACTION', `Stripping ${compatIssues.length} incompatible code pairing(s) from claims`, 'warning'));
+              for (const claim of context.parsedClaims) {
+                // Remove procedure codes that don't have matching diagnoses
+                const hasACLDiag = claim.diagnosisCodes.some(d => d.code.startsWith('M23.61') || d.code.startsWith('S83.51'));
+                const hasMeniscusDiag = claim.diagnosisCodes.some(d => d.code.startsWith('M23.2'));
+                if (!hasACLDiag) claim.procedureCodes = claim.procedureCodes.filter(p => p.code !== '29888');
+                if (!hasMeniscusDiag) claim.procedureCodes = claim.procedureCodes.filter(p => p.code !== '29881');
+              }
+            }
+
             context.state = 'COB_ANALYSIS';
             const cobRetry = await runCOBAnalysis(context.parsedClaims);
             context.cobResult = cobRetry.result;
             context.logs.push(...cobRetry.logs);
+            context.logs.push(log('RETRY_COB_COMPLETE', `Re-ran COB after corrective action. New OOP: ₹${cobRetry.result.totalPatientOOP.toLocaleString('en-IN')}`, 'info'));
           } else {
             context.logs.push(log('RETRY_EXHAUSTED', `Max retries (${MAX_RETRIES}) exhausted. Proceeding with ${v.issues.length} known issue(s).`, 'warning'));
             verificationPassed = true; // proceed with warnings
