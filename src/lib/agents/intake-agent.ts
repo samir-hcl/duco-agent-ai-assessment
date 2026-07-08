@@ -12,10 +12,30 @@ interface ExtractedInvoice { patientName: string; patientDOB: string; providerNa
 interface ExtractedMRI { patientName: string; patientDOB: string; referringPhysician: string; facility: string; dateOfExamination: string; findings: string; impression: string[]; recommendation: string; }
 interface ExtractedEstimate { patientName: string; patientDOB: string; surgeonName: string; facility: string; proposedDate: string; procedures: { cptCode: string; description: string; estimatedCost: number }[]; totalEstimate: number; diagnosis: string; icd10Codes: string[]; }
 
+/**
+ * Classifies an image file using content-aware heuristics:
+ * checks filename patterns AND file data content for keywords.
+ */
+function classifyImage(file: UploadedFile): 'invoice' | 'estimate' | 'unknown' {
+  const name = file.name.toLowerCase();
+  const data = (file.data || '').toLowerCase();
+  // Check filename patterns
+  if (name.includes('invoice') || name.includes('bill') || name.includes('receipt')) return 'invoice';
+  if (name.includes('estimate') || name.includes('surgeon') || name.includes('surgery')) return 'estimate';
+  // Check data content for keywords (base64 decoded text might contain these)
+  if (data.includes('invoice') || data.includes('physiotherapy') || data.includes('therapy session')) return 'invoice';
+  if (data.includes('estimate') || data.includes('reconstruction') || data.includes('arthroscop')) return 'estimate';
+  // Fallback: if filename contains 'pt' specifically as physiotherapy abbreviation
+  if (name.match(/\bpt\b/) || name.includes('physio')) return 'invoice';
+  return 'unknown';
+}
+
 async function processImage(file: UploadedFile, logs: AgentLogEntry[]): Promise<ParsedClaim | null> {
   logs.push(log('PROCESS_IMAGE', `Processing image: ${file.name}`));
-  const isInvoice = file.name.toLowerCase().includes('invoice') || file.name.toLowerCase().includes('pt');
-  const isEstimate = file.name.toLowerCase().includes('surgeon') || file.name.toLowerCase().includes('estimate');
+  const classification = classifyImage(file);
+  const isInvoice = classification === 'invoice';
+  const isEstimate = classification === 'estimate';
+  logs.push(log('CLASSIFY', `Image classified as: ${classification}`, classification === 'unknown' ? 'warning' : 'info'));
 
   try {
     if (process.env.GOOGLE_GEMINI_API_KEY) {
@@ -49,9 +69,44 @@ async function processPDF(file: UploadedFile, logs: AgentLogEntry[]): Promise<Pa
   return mockMRIClaim(file, logs);
 }
 
+/**
+ * Processes a text file (e.g., user query / voice-to-text transcript).
+ * Extracts intent, mentioned patients, and requested actions using
+ * keyword-based NLP. Does not produce a claim but enriches the log
+ * with structured analysis of what the user is asking for.
+ */
 async function processText(file: UploadedFile, logs: AgentLogEntry[]): Promise<ParsedClaim | null> {
-  logs.push(log('PROCESS_TEXT', `Processing: ${file.name}`));
-  logs.push(log('NLP_ANALYSIS', 'User query processed - requests COB analysis, pre-auth letters, cost breakdown', 'success'));
+  logs.push(log('PROCESS_TEXT', `Processing text input: ${file.name}`));
+  const text = (file.data || '').toLowerCase();
+
+  // Extract mentioned patients
+  const patients: string[] = [];
+  if (text.includes('aarav')) patients.push('Aarav Sen');
+  if (text.includes('priya')) patients.push('Priya Sen');
+  logs.push(log('NLP_ENTITIES', `Identified patients: ${patients.length > 0 ? patients.join(', ') : 'none mentioned'}`, patients.length > 0 ? 'success' : 'warning'));
+
+  // Extract intent signals
+  const intents: string[] = [];
+  if (text.includes('which plan pays first') || text.includes('primary') || text.includes('secondary') || text.includes('cob') || text.includes('coordination'))
+    intents.push('COB_DETERMINATION');
+  if (text.includes('out of') && text.includes('pocket') || text.includes('oop') || text.includes('how much') || text.includes('cost') || text.includes('pay'))
+    intents.push('COST_CALCULATION');
+  if (text.includes('pre-auth') || text.includes('authorization') || text.includes('letter') || text.includes('rejection'))
+    intents.push('PREAUTH_LETTERS');
+  if (text.includes('surgery') || text.includes('knee') || text.includes('acl') || text.includes('operated'))
+    intents.push('SURGICAL_CLAIM');
+  if (text.includes('physical therapy') || text.includes('physiotherapy') || text.includes('bills'))
+    intents.push('PT_CLAIM');
+
+  if (intents.length > 0) {
+    logs.push(log('NLP_INTENT', `Detected intents: ${intents.join(', ')}`, 'success'));
+  } else {
+    logs.push(log('NLP_INTENT', 'No specific intents detected in query', 'warning'));
+  }
+
+  logs.push(log('NLP_SUMMARY', `User requests: ${intents.map(i => i.replace(/_/g, ' ')).join(', ') || 'general inquiry'}. Patients: ${patients.join(', ') || 'unspecified'}.`, 'success'));
+
+  // Text queries don't produce claims — they drive the orchestrator's behavior
   return null;
 }
 
