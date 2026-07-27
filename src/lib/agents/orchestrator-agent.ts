@@ -188,27 +188,49 @@ export async function runOrchestrator(files: UploadedFile[]): Promise<AgentConte
     context.logs.push(log('REFLECT', postVerifyReflection.reasoning));
 
     // ═══ HUMAN APPROVAL GATE ═══
+    // Phase 1 stops here — returns context with pendingApproval flag.
+    // Output generation is deferred to Phase 2 after explicit human approval.
     if (context.cobResult) {
-      context.logs.push(log('APPROVAL_GATE', '⏸ Requesting human approval before generating final outputs...', 'warning'));
+      context.logs.push(log('APPROVAL_GATE', '⏸ Awaiting explicit human approval before generating final outputs...', 'warning'));
       messages.push(createMessage('OrchestratorAgent', 'HumanApprover', 'APPROVAL_REQUEST', {
         totalCharges: context.cobResult.totalCharges,
         totalOOP: context.cobResult.totalPatientOOP,
         issueCount: context.errors.length,
       }));
-
-      // Simulated auto-approval (in production, this would wait for user input via WebSocket/polling)
-      const approvalCondition = context.errors.length === 0 || context.errors.every(e => !e.includes('Math error'));
-      if (approvalCondition) {
-        messages.push(createMessage('HumanApprover', 'OrchestratorAgent', 'APPROVAL_GRANTED', { approved: true }));
-        context.logs.push(log('APPROVAL_GRANTED', '✅ Human approval granted (auto-approved: no critical math errors)', 'success'));
-      } else {
-        context.logs.push(log('APPROVAL_CONDITIONAL', '⚠️ Proceeding with conditional approval — critical issues logged for review', 'warning'));
-      }
+      // Mark as pending — do NOT auto-approve
+      context.state = 'VERIFICATION'; // stays in verification until approved
     }
+
+    context.logs.push(log('PHASE1_COMPLETE', `Phase 1 complete. Awaiting human decision. | Claims: ${context.parsedClaims.length} | OOP: ₹${context.cobResult?.totalPatientOOP.toLocaleString('en-IN') || '0'} | Messages: ${messages.length}`, 'success'));
+
+  } catch (error) {
+    context.state = 'ERROR';
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    context.errors.push(msg);
+    context.logs.push(log('ERROR', `Pipeline error: ${msg}`, 'error'));
+    context.logs.push(log('RECOVERY', 'Error state reached. Human intervention required.', 'error'));
+  }
+
+  return context;
+}
+
+/**
+ * Phase 2: Generates outputs ONLY after explicit human approval.
+ * Called via /api/approve endpoint after user clicks Approve in the UI.
+ */
+export async function runOrchestratorPhase2(
+  context: AgentContext,
+  approved: boolean
+): Promise<AgentContext> {
+  const messages: AgentMessage[] = [];
+
+  if (approved) {
+    messages.push(createMessage('HumanApprover', 'OrchestratorAgent', 'APPROVAL_GRANTED', { approved: true }));
+    context.logs.push(log('APPROVAL_GRANTED', '✅ Human reviewer EXPLICITLY approved the COB analysis and letter generation.', 'success'));
 
     // ═══ STAGE 4: OUTPUT ═══
     context.state = 'OUTPUT';
-    context.logs.push(log('STATE_TRANSITION', 'VERIFICATION → OUTPUT: Generating multi-modal outputs'));
+    context.logs.push(log('STATE_TRANSITION', 'VERIFICATION → OUTPUT: Generating multi-modal outputs (post-approval)'));
     if (context.cobResult) {
       messages.push(createMessage('OrchestratorAgent', 'OutputAgent', 'DATA', { claims: context.parsedClaims, cobResult: context.cobResult }));
       const outputs = await generateOutputs(context.parsedClaims, context.cobResult);
@@ -229,17 +251,14 @@ export async function runOrchestrator(files: UploadedFile[]): Promise<AgentConte
       `Claims: ${context.parsedClaims.length}`,
       `Letters: ${context.preAuthLetters.length}`,
       `OOP: ₹${context.cobResult?.totalPatientOOP.toLocaleString('en-IN') || '0'}`,
-      `Retries: ${retryCount}`,
       `Messages exchanged: ${messages.length}`,
       `Errors: ${context.errors.length}`,
     ].join(' | '), 'success'));
-
-  } catch (error) {
+  } else {
+    messages.push(createMessage('HumanApprover', 'OrchestratorAgent', 'APPROVAL_GRANTED', { approved: false }));
+    context.logs.push(log('APPROVAL_REJECTED', '❌ Human reviewer REJECTED the analysis. No outputs generated.', 'error'));
+    context.errors.push('Analysis rejected by human reviewer — no outputs generated');
     context.state = 'ERROR';
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    context.errors.push(msg);
-    context.logs.push(log('ERROR', `Pipeline error: ${msg}`, 'error'));
-    context.logs.push(log('RECOVERY', 'Error state reached. Human intervention required.', 'error'));
   }
 
   return context;
