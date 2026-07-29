@@ -86,39 +86,69 @@ function CostFlowDiagram({ data }: { data: CostFlowData }) {
   );
 }
 
-// ============ AUDIO BRIEFING ============
+// ============ TTS FINAL VERDICT ============
 function AudioBriefingPlayer({ script, sections }: { script: string; sections: { title: string; content: string }[] }) {
   const [playing, setPlaying] = useState(false);
+  const [currentSection, setCurrentSection] = useState(-1);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const toggle = () => {
-    if (playing) { window.speechSynthesis.cancel(); setPlaying(false); return; }
-    const utterance = new SpeechSynthesisUtterance(script || sections.map(s => `${s.title}. ${s.content}`).join('. '));
+    if (playing) { window.speechSynthesis.cancel(); setPlaying(false); setCurrentSection(-1); return; }
+    const fullText = script || sections.map(s => `${s.title}. ${s.content}`).join('. ');
+    const utterance = new SpeechSynthesisUtterance(fullText);
     utterance.rate = 0.9; utterance.pitch = 1;
-    utterance.onend = () => setPlaying(false);
+    utterance.onend = () => { setPlaying(false); setCurrentSection(-1); };
+    // Track approximate section progress
+    let charCount = 0;
+    const sectionBoundaries = sections.map(s => { charCount += s.title.length + s.content.length + 2; return charCount; });
+    utterance.onboundary = (e) => {
+      const pos = e.charIndex;
+      const idx = sectionBoundaries.findIndex(b => pos < b);
+      if (idx !== -1) setCurrentSection(idx);
+    };
     synthRef.current = utterance;
     window.speechSynthesis.speak(utterance);
     setPlaying(true);
+    setCurrentSection(0);
   };
 
   return (
-    <Card>
+    <Card className="border-2 border-indigo-500/30 bg-gradient-to-br from-indigo-500/5 to-purple-500/5">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">🔊 Audio Briefing</CardTitle>
-        <CardDescription>Listen to a patient-friendly summary</CardDescription>
+        <CardTitle className="flex items-center gap-2 text-xl">
+          🎙️ Final Verdict — TTS Summary
+        </CardTitle>
+        <CardDescription>AI-generated spoken summary of the COB analysis and next steps</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button onClick={toggle} variant={playing ? "destructive" : "default"} className="w-full" size="lg">
-          {playing ? <><Icons.Pause /> Stop Playback</> : <><Icons.Play /> Play Audio Briefing</>}
+        <Button
+          onClick={toggle}
+          variant={playing ? "destructive" : "default"}
+          className={`w-full h-14 text-lg font-semibold ${!playing ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : ''}`}
+          size="lg"
+        >
+          {playing ? <><Icons.Pause /> Stop Playback</> : <><Icons.Play /> ▶ Play Final Verdict (TTS)</>}
         </Button>
-        <Accordion>
+        {playing && (
+          <div className="flex items-center gap-2 text-sm text-indigo-400">
+            <span className="animate-pulse">●</span> Speaking... Section {currentSection + 1} of {sections.length}
+          </div>
+        )}
+        <div className="space-y-2">
           {sections.map((s, i) => (
-            <AccordionItem key={i} value={`section-${i}`}>
-              <AccordionTrigger className="text-sm">{s.title}</AccordionTrigger>
-              <AccordionContent><p className="text-sm text-muted-foreground leading-relaxed">{s.content}</p></AccordionContent>
-            </AccordionItem>
+            <div
+              key={i}
+              className={`p-3 rounded-lg border transition-all duration-300 ${
+                currentSection === i
+                  ? 'border-indigo-500 bg-indigo-500/10 scale-[1.01]'
+                  : 'border-border/50 bg-muted/20'
+              }`}
+            >
+              <div className="font-medium text-sm">{s.title}</div>
+              <div className="text-sm text-muted-foreground mt-1">{s.content}</div>
+            </div>
           ))}
-        </Accordion>
+        </div>
       </CardContent>
     </Card>
   );
@@ -178,25 +208,65 @@ function PreAuthLetterCard({ letter }: { letter: PreAuthLetter }) {
   );
 }
 
-// ============ AGENT LOG ============
+// ============ STREAMING AGENT LOG ============
 function AgentLog({ logs }: { logs: AgentLogEntry[] }) {
   const statusColors: Record<string, string> = { info: 'text-blue-400', success: 'text-emerald-400', warning: 'text-amber-400', error: 'text-red-400' };
   const statusIcons: Record<string, string> = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌' };
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState<string>('all');
+
+  // Auto-scroll to bottom when new logs arrive (streaming effect)
+  React.useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs.length]);
+
+  const agents = Array.from(new Set(logs.map(l => l.agent)));
+  const filteredLogs = filter === 'all' ? logs : logs.filter(l => l.agent === filter);
+  const toolCalls = logs.filter(l => l.action === 'TOOL_CALL' || l.action.includes('CALCULATION') || l.action.includes('TOOL'));
 
   return (
-    <ScrollArea className="h-96">
-      <div className="space-y-1 font-mono text-xs">
-        {logs.map((entry, i) => (
-          <div key={i} className={`flex gap-2 py-1 px-2 rounded hover:bg-muted/50 ${statusColors[entry.status]}`}>
-            <span>{statusIcons[entry.status]}</span>
-            <span className="text-muted-foreground w-14 shrink-0">{new Date(entry.timestamp).toLocaleTimeString()}</span>
-            <Badge variant="outline" className="text-[10px] h-4 shrink-0">{entry.agent}</Badge>
-            <span className="font-semibold shrink-0">[{entry.action}]</span>
-            <span className="text-muted-foreground">{entry.detail}</span>
-          </div>
+    <div className="space-y-3">
+      {/* Agent filter tabs */}
+      <div className="flex gap-2 flex-wrap">
+        <Badge
+          variant={filter === 'all' ? 'default' : 'outline'}
+          className="cursor-pointer"
+          onClick={() => setFilter('all')}
+        >All ({logs.length})</Badge>
+        {agents.map(a => (
+          <Badge
+            key={a}
+            variant={filter === a ? 'default' : 'outline'}
+            className="cursor-pointer"
+            onClick={() => setFilter(a)}
+          >{a} ({logs.filter(l => l.agent === a).length})</Badge>
         ))}
+        {toolCalls.length > 0 && (
+          <Badge variant="outline" className="bg-purple-500/10 text-purple-400">
+            🔧 Tool Calls: {toolCalls.length}
+          </Badge>
+        )}
       </div>
-    </ScrollArea>
+      {/* Streaming log view */}
+      <ScrollArea className="h-96">
+        <div ref={scrollRef} className="space-y-1 font-mono text-xs">
+          {filteredLogs.map((entry, i) => (
+            <div
+              key={i}
+              className={`flex gap-2 py-1.5 px-2 rounded hover:bg-muted/50 transition-all duration-300 ${statusColors[entry.status]} ${i === filteredLogs.length - 1 ? 'animate-in fade-in slide-in-from-bottom-2' : ''}`}
+            >
+              <span>{statusIcons[entry.status]}</span>
+              <span className="text-muted-foreground w-14 shrink-0">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+              <Badge variant="outline" className="text-[10px] h-4 shrink-0">{entry.agent}</Badge>
+              <span className="font-semibold shrink-0">[{entry.action}]</span>
+              <span className="text-muted-foreground">{entry.detail}</span>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 

@@ -1,0 +1,18 @@
+[
+  {"code": "97161", "type": "CPT", "description": "Physical Therapy Evaluation, Low Complexity", "category": "Physical Therapy", "requiresPreAuth": false, "avgCost": 5000, "commonDiagnoses": ["M54.5", "M54.51"]},
+  {"code": "97162", "type": "CPT", "description": "Physical Therapy Evaluation, Moderate Complexity", "category": "Physical Therapy", "requiresPreAuth": false, "avgCost": 6000, "commonDiagnoses": ["M54.5", "M23.611"]},
+  {"code": "97163", "type": "CPT", "description": "Physical Therapy Evaluation, High Complexity", "category": "Physical Therapy", "requiresPreAuth": false, "avgCost": 7500, "commonDiagnoses": ["M23.611", "S83.511A"]},
+  {"code": "97110", "type": "CPT", "description": "Therapeutic Exercises to Develop Strength, Endurance, Flexibility, and Range of Motion", "category": "Physical Therapy", "requiresPreAuth": false, "avgCost": 5000, "commonDiagnoses": ["M54.5", "M54.51", "M23.611"]},
+  {"code": "97140", "type": "CPT", "description": "Manual Therapy Techniques (Mobilization, Manipulation)", "category": "Physical Therapy", "requiresPreAuth": false, "avgCost": 4500, "commonDiagnoses": ["M54.5", "M54.51"]},
+  {"code": "97530", "type": "CPT", "description": "Therapeutic Activities, Direct Patient Contact", "category": "Physical Therapy", "requiresPreAuth": false, "avgCost": 4800, "commonDiagnoses": ["M54.5", "M23.611"]},
+  {"code": "97112", "type": "CPT", "description": "Neuromuscular Re-education of Movement, Balance, Coordination", "category": "Physical Therapy", "requiresPreAuth": false, "avgCost": 5200, "commonDiagnoses": ["M23.611", "S83.511A"]},
+  {"code": "29888", "type": "CPT", "description": "Arthroscopically Aided Anterior Cruciate Ligament (ACL) Repair/Augmentation or Reconstruction", "category": "Orthopedic Surgery", "requiresPreAuth": true, "avgCost": 350000, "commonDiagnoses": ["M23.611", "M23.612", "S83.511A"]},
+  {"code": "29881", "type": "CPT", "description": "Arthroscopy, Knee, Surgical; with Meniscectomy Including Any Meniscal Shaving", "category": "Orthopedic Surgery", "requiresPreAuth": true, "avgCost": 100000, "commonDiagnoses": ["M23.211", "M23.212"]},
+  {"code": "29880", "type": "CPT", "description": "Arthroscopy, Knee, Surgical; with Meniscus Repair", "category": "Orthopedic Surgery", "requiresPreAuth": true, "avgCost": 150000, "commonDiagnoses": ["M23.211", "M23.212"]},
+  {"code": "27447", "type": "CPT", "description": "Arthroplasty, Knee, Condyle and Plateau; Total Knee Replacement", "category": "Orthopedic Surgery", "requiresPreAuth": true, "avgCost": 500000, "commonDiagnoses": ["M17.11", "M17.12"]},
+  {"code": "73721", "type": "CPT", "description": "MRI, Any Joint of Lower Extremity; Without Contrast", "category": "Radiology", "requiresPreAuth": false, "avgCost": 15000, "commonDiagnoses": ["M23.611", "M25.561"]},
+  {"code": "73723", "type": "CPT", "description": "MRI, Any Joint of Lower Extremity; With and Without Contrast", "category": "Radiology", "requiresPreAuth": true, "avgCost": 25000, "commonDiagnoses": ["M23.611", "M23.211"]},
+  {"code": "01402", "type": "CPT", "description": "Anesthesia for Open or Surgical Arthroscopic Procedures on Knee Joint", "category": "Anesthesia", "requiresPreAuth": false, "avgCost": 50000, "commonDiagnoses": ["M23.611", "M23.211"]},
+  {"code": "99213", "type": "CPT", "description": "Office or Other Outpatient Visit, Established Patient, Level 3", "category": "Evaluation & Management", "requiresPreAuth": false, "avgCost": 3000, "commonDiagnoses": ["M54.5", "M25.561"]},
+  {"code": "99214", "type": "CPT", "description": "Office or Other Outpatient Visit, Established Patient, Level 4", "category": "Evaluation & Management", "requiresPreAuth": false, "avgCost": 5000, "commonDiagnoses": ["M23.611", "M23.211"]}
+]

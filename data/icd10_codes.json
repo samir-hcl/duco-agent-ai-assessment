@@ -1,0 +1,17 @@
+[
+  {"code": "M23.611", "type": "ICD10", "description": "Spontaneous disruption of anterior cruciate ligament of right knee", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["29888", "29881"]},
+  {"code": "M23.612", "type": "ICD10", "description": "Spontaneous disruption of anterior cruciate ligament of left knee", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["29888", "29881"]},
+  {"code": "M23.211", "type": "ICD10", "description": "Derangement of anterior horn of medial meniscus due to old tear or injury, right knee", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["29881", "29880"]},
+  {"code": "M23.212", "type": "ICD10", "description": "Derangement of anterior horn of medial meniscus due to old tear or injury, left knee", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["29881", "29880"]},
+  {"code": "S83.511A", "type": "ICD10", "description": "Sprain of anterior cruciate ligament of right knee, initial encounter", "category": "Injury", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["29888"]},
+  {"code": "S83.512A", "type": "ICD10", "description": "Sprain of anterior cruciate ligament of left knee, initial encounter", "category": "Injury", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["29888"]},
+  {"code": "M54.5", "type": "ICD10", "description": "Low Back Pain", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Spine", "commonProcedures": ["97161", "97110"]},
+  {"code": "M54.51", "type": "ICD10", "description": "Vertebrogenic Low Back Pain", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Spine", "commonProcedures": ["97161", "97110", "97140"]},
+  {"code": "M54.59", "type": "ICD10", "description": "Other Low Back Pain", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Spine", "commonProcedures": ["97110", "97140"]},
+  {"code": "M17.11", "type": "ICD10", "description": "Primary Osteoarthritis, Right Knee", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["27447"]},
+  {"code": "M17.12", "type": "ICD10", "description": "Primary Osteoarthritis, Left Knee", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["27447"]},
+  {"code": "M25.561", "type": "ICD10", "description": "Pain in Right Knee", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["99213", "73721"]},
+  {"code": "M25.562", "type": "ICD10", "description": "Pain in Left Knee", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "Knee", "commonProcedures": ["99213", "73721"]},
+  {"code": "G89.29", "type": "ICD10", "description": "Other Chronic Pain", "category": "Nervous System", "requiresPreAuth": false, "bodySystem": "General", "commonProcedures": ["99214", "97110"]},
+  {"code": "M79.3", "type": "ICD10", "description": "Panniculitis, Unspecified", "category": "Musculoskeletal", "requiresPreAuth": false, "bodySystem": "General", "commonProcedures": ["99213"]}
+]

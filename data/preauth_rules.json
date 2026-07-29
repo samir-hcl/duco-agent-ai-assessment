@@ -1,0 +1,47 @@
+[
+  {
+    "ruleId": "PREAUTH-001",
+    "condition": "surgical_procedure",
+    "description": "Pre-authorization required for all surgical procedures with estimated cost exceeding Rs.1,00,000",
+    "applicableCPTCodes": ["29888", "29881", "29880", "27447"],
+    "costThreshold": 100000,
+    "requiredDocumentation": ["MRI Report", "Surgeon Recommendation Letter", "Conservative Treatment History (minimum 6 weeks)"],
+    "reviewTimeline": "5-7 business days",
+    "autoApproveBelow": 50000
+  },
+  {
+    "ruleId": "PREAUTH-002",
+    "condition": "pt_sessions_over_12",
+    "description": "Pre-authorization required for physical therapy exceeding 12 sessions per episode of care",
+    "applicableCPTCodes": ["97161", "97162", "97163", "97110", "97140", "97530", "97112"],
+    "sessionThreshold": 12,
+    "requiredDocumentation": ["Progress Notes", "Updated Treatment Plan", "Functional Outcome Measures"],
+    "reviewTimeline": "3-5 business days"
+  },
+  {
+    "ruleId": "PREAUTH-003",
+    "condition": "advanced_imaging",
+    "description": "Pre-authorization required for MRI with contrast studies",
+    "applicableCPTCodes": ["73723"],
+    "requiredDocumentation": ["Clinical Indication", "Prior X-ray Results", "Failed Conservative Treatment"],
+    "reviewTimeline": "2-3 business days"
+  },
+  {
+    "ruleId": "PREAUTH-004",
+    "condition": "inpatient_admission",
+    "description": "Pre-authorization required for all inpatient hospital admissions",
+    "applicableCPTCodes": [],
+    "costThreshold": 0,
+    "requiredDocumentation": ["Admission Order", "Medical Necessity Letter", "Estimated Length of Stay"],
+    "reviewTimeline": "24-48 hours (urgent)"
+  },
+  {
+    "ruleId": "PREAUTH-005",
+    "condition": "total_knee_replacement",
+    "description": "Pre-authorization with mandatory second opinion for total knee replacement",
+    "applicableCPTCodes": ["27447"],
+    "costThreshold": 300000,
+    "requiredDocumentation": ["MRI Report", "X-ray showing bone-on-bone", "Second Orthopedic Opinion", "6 months conservative treatment records"],
+    "reviewTimeline": "7-10 business days"
+  }
+]
