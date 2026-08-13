@@ -1,170 +1,147 @@
-# DuCO-Agent 🏥⚡
+# DuCO-Agent — Dual Coverage AI Agent for Coordination of Benefits
 
-**Dual Coverage Coordination of Benefits AI Agent**
-
-A multi-modal AI system that automates insurance Coordination of Benefits (COB) analysis for patients with dual health insurance coverage. Built with Next.js 14+, TypeScript, Tailwind CSS, shadcn/ui, and Google Gemini 2.0 Flash.
-
----
-
-## Problem Statement
-
-**Priya and Aarav Sen** are a married couple in Mumbai with dual insurance coverage:
-
-| | Plan A (Insurer1 – PPO) | Plan B (Insurer2 – HMO) |
-|---|---|---|
-| **Primary Holder** | Priya Sen | Aarav Sen |
-| **Dependent** | Aarav Sen | Priya Sen |
-| **Deductible** | ₹50,000 | ₹30,000 |
-| **Coinsurance** | 80/20 | 70/30 |
-| **OOP Max** | ₹3,00,000 | ₹4,00,000 |
-
-**Aarav** needs ACL reconstruction surgery (₹4,50,000) and **Priya** has physiotherapy bills (₹30,000). The system must determine which plan pays first, calculate deductibles/coinsurance/crossover, and generate pre-authorization letters.
-
----
-
-## Features
-
-### Multi-Modal Document Intake
-- 📷 **Image OCR** — Scanned invoices and surgeon estimates via Gemini Vision
-- 📄 **PDF Analysis** — MRI radiology reports extraction
-- 🎙️ **Text/Voice Processing** — Natural language user queries (voice-to-text)
-- 🔍 **AI-Powered Extraction** — Falls back to mock data when API key is absent
-
-### COB Analysis Engine
-- ✅ **Subscriber Rule** — Determines primary/secondary per insurance standards
-- 💰 **Deductible Tracking** — Individual and family deductible accumulation
-- 📊 **Coinsurance Calculation** — Primary → Secondary crossover amounts
-- 🔄 **Cost Flow Visualization** — Visual breakdown of payment distribution
-
-### Verification & Compliance
-- 🏥 **Medical Code Validation** — CPT-4 and ICD-10 code lookup
-- ⚕️ **Procedure-Diagnosis Compatibility** — Cross-checks clinical appropriateness
-- ✓ **Math Verification** — Ensures all calculations balance
-- 🔒 **Pre-Auth Detection** — Flags procedures requiring prior authorization
-
-### Multi-Modal Outputs
-- 📝 **Pre-Authorization Letters** — AI-generated formal letters for both insurers (primary + secondary)
-- 📊 **Financial Summary** — Detailed cost breakdown with percentages
-- 🔊 **Audio Briefing** — Patient-friendly TTS summary using Web Speech API
-- 📋 **Agent Reasoning Log** — Full decision trace with timestamps
-
----
+An **agentic AI system** that processes multi-modal medical documents (scanned invoices, surgeon estimates, MRI reports) and autonomously determines Coordination of Benefits (COB) for patients with dual insurance coverage.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│              ORCHESTRATOR AGENT              │
-│   State: IDLE → INTAKE → COB → VERIFY → OUT│
-├────────┬────────┬──────────┬────────────────┤
-│ Intake │  COB   │  Verify  │    Output      │
-│ Agent  │ Agent  │  Agent   │    Agent       │
-├────────┴────────┴──────────┴────────────────┤
-│          Core Libraries                      │
-│  Gemini Client │ Medical Codes │ COB Engine  │
-└─────────────────────────────────────────────┘
+                        ┌─────────────────────────┐
+                        │    React/Next.js UI      │
+                        │  Upload · Logs · Approve │
+                        └────────┬────────────────┘
+                                 │ POST /api/orchestrate
+                    ┌────────────▼────────────────┐
+                    │   ADK Bridge (route.ts)      │
+                    │  Tries Python ADK → Fallback │
+                    │  to TypeScript Orchestrator  │
+                    └────────────┬────────────────┘
+         ┌───────────────────────▼──────────────────────────┐
+         │              OrchestratorAgent (State Machine)    │
+         │  reflect() → State Transitions → Inter-Agent Msgs │
+         └──┬──────────┬──────────────┬─────────────┬───────┘
+            ▼          ▼              ▼             ▼
+     ┌──────────┐ ┌─────────┐ ┌──────────────┐ ┌──────────┐
+     │ Intake   │ │  COB    │ │ Verification │ │  Output  │
+     │ Agent    │ │ Agent   │ │   Agent      │ │  Agent   │
+     │ (OCR)    │ │ (Math)  │ │ (LLM Judge)  │ │ (Letters)│
+     └──────────┘ └─────────┘ └──────────────┘ └──────────┘
 ```
 
-### Agent Pipeline
+### Pipeline Stages
 
-| Agent | Responsibility |
-|---|---|
-| **IntakeAgent** | Multi-modal file processing (OCR, PDF, NLP), medical code inference |
-| **COBAgent** | Primary/secondary determination, deductible/coinsurance calculations |
-| **VerificationAgent** | Code validation, math checks, compliance verification |
-| **OutputAgent** | Pre-auth letters, financial summary, audio briefing script |
-| **OrchestratorAgent** | State machine driving the full pipeline |
+| Stage | Agent | Behavior |
+|-------|-------|----------|
+| **1. INTAKE** | `IntakeAgent` | Gemini Vision OCR extracts structured data from scanned images/PDFs. Classifies documents (invoice/estimate/MRI). Falls back to mock data with logged warning if API unavailable. |
+| **2. COB_ANALYSIS** | `COBAgent` | Deterministic COB engine applies Subscriber Rule and Birthday Rule. All math (deductibles, coinsurance, OOP caps) computed by pure functions — **LLM never calculates**. |
+| **3. VERIFICATION** | `VerificationAgent` | **3-layer validation**: (a) Code verification against JSON database, (b) Deterministic math audit, (c) **LLM-as-a-Judge** semantic audit via Gemini. Retry loop (max 2) with corrective action on failure. |
+| **⏸ HITL GATE** | `HumanApprover` | Pipeline **stops**. Blocking modal shows financial summary. User must explicitly click Approve/Reject. No outputs generated without approval. |
+| **4. OUTPUT** | `OutputAgent` | Generates pre-auth letters (Gemini), financial summary, TTS script. PDF download, clipboard copy, text export. |
 
----
+### Key Design Patterns
 
-## Tech Stack
+- **State Machine**: `IDLE → INTAKE → COB_ANALYSIS → VERIFICATION → [HITL] → OUTPUT → COMPLETE`
+- **Reflection**: `reflect()` function examines context at each transition and decides next action
+- **Inter-Agent Messaging**: Typed `AgentMessage` envelopes (`DATA`, `ERROR`, `RETRY`, `APPROVAL_REQUEST`)
+- **Retry Loop**: On verification failure → corrective action (strip incompatible codes) → re-run COB → re-verify (max 2 retries)
+- **LLM-as-a-Judge**: Gemini evaluates COB rule reasoning semantically after deterministic checks pass
+- **Human-in-the-Loop**: Two-phase execution (`/api/orchestrate` → `/api/approve`) with blocking approval gate
+- **ADK Bridge**: `route.ts` attempts Python Google ADK backend first, seamlessly falls back to TS orchestrator
 
-- **Framework:** Next.js 14+ (App Router)
-- **Language:** TypeScript (strict)
-- **Styling:** Tailwind CSS v4 + shadcn/ui
-- **AI Model:** Google Gemini 2.0 Flash (free tier)
-- **Speech:** Web Speech API (browser TTS)
+## Mock Database & REST APIs
 
----
+All medical codes and rules are stored in JSON files (simulating a real database), queryable via REST APIs:
 
-## Getting Started
+| File | API Endpoint | Contents |
+|------|-------------|----------|
+| `data/cpt_codes.json` | `GET /api/codes/cpt/[code]` | 16 CPT procedure codes |
+| `data/icd10_codes.json` | `GET /api/codes/icd10/[code]` | 15 ICD-10 diagnosis codes |
+| `data/preauth_rules.json` | `POST /api/rules/preauth` | 5 pre-authorization rules with thresholds |
+| `data/insurance_plans.json` | — | Plan A (PPO) + Plan B (HMO) with full deductible/coinsurance/OOP details |
 
-### Prerequisites
-- Node.js ≥ 18
-- npm
+## Multi-Modal OCR
 
-### Installation
+- **Engine**: Gemini 2.0 Flash Vision API (`@google/generative-ai`)
+- **Inputs**: Scanned JPG invoices, surgeon estimates, text MRI reports, user queries
+- **Committed Samples**: `public/mock-data/priya_pt_invoice.jpg`, `aarav_surgeon_estimate.jpg`, `aarav_mri_report_text.txt`, `user_query.txt`
+- **Fallback**: If API key missing or quota exhausted, logs `FALLBACK` warning and uses mock data — never silently substitutes
+
+## Mathematical Engine
+
+All insurance math is **deterministic TypeScript** — the LLM is never used for calculations:
+
+- **COB Rules**: `determinePrimaryPlan()` in `cob-engine.ts` — Subscriber Rule + Birthday Rule
+- **Deductibles**: `calculateDeductible()` in `deductible-calculator.ts` — tracks individual/family met amounts
+- **Coinsurance**: In-network (80/20) and out-of-network (60/40) splits
+- **OOP Max**: Caps patient responsibility at plan maximums
+- **INR Formatting**: `Math.round()` + `toLocaleString('en-IN')` with ₹ symbol
+
+## Test Coverage
+
+```
+ 5 test files | 63 tests | 0 failures
+
+ ✓ src/lib/insurance/deductible-calculator.test.ts    (11 tests)
+ ✓ src/lib/insurance/cob-engine.test.ts               (12 tests)
+ ✓ src/lib/medical/clinical-mapper.test.ts            (18 tests)
+ ✓ src/lib/agents/intake-agent.test.ts                (12 tests) — OCR schema validation
+ ✓ src/lib/agents/verification-agent.test.ts          (10 tests) — math integrity + totals
+```
+
+## Outputs
+
+| Output | Implementation |
+|--------|---------------|
+| **Cost Flow Visualization** | Interactive bar chart showing payment flow: Total → Primary → Secondary → Patient OOP |
+| **Pre-Auth Letters** | Gemini-generated, clinically formatted. Copy/TXT/PDF download |
+| **TTS Final Verdict** | Browser Web Speech API with section highlighting during playback |
+| **Agent Trace Logs** | Real-time streaming log viewer with per-agent filter badges |
+| **PDF Export** | Direct `.pdf` download with A4 formatting, CPT/ICD-10 codes, cost summary |
+
+## Quick Start
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### Environment Setup
+# Set Gemini API key
+echo "GOOGLE_GEMINI_API_KEY=your_key" > .env.local
 
-```bash
-cp .env.example .env.local
-```
+# Run tests (63 tests)
+npm test
 
-Add your Google Gemini API key (optional — app works with mock data without it):
-
-```env
-GOOGLE_GEMINI_API_KEY=your_api_key_here
-```
-
-### Run Development Server
-
-```bash
+# Start dev server (Next.js only)
 npm run dev
+
+# Start with Python ADK backend
+npm run dev:full
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
 
-### Usage
+## Tech Stack
 
-1. Click **"Load Demo Files"** to load the scenario files
-2. Click **"Run DuCO-Agent Analysis"**
-3. View results across 4 tabs: Results, Letters, Agent Log
-4. Play the **Audio Briefing** for a patient-friendly summary
-5. **Download** or **Copy** pre-auth letters
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19 + Next.js 16 + shadcn/ui + Tailwind CSS 4 |
+| AI/LLM | Gemini 2.0 Flash (Vision OCR + text reasoning + Judge) |
+| Agent Framework | Google ADK (Python backend) + TS State Machine (primary) |
+| Database | JSON mock database with REST API endpoints |
+| Testing | Vitest — 63 unit tests across 5 test files |
+| TTS | Web Speech API with section tracking |
 
----
+## Python ADK Backend (Optional)
 
-## Project Structure
+The `backend/` directory contains a Google ADK implementation with `SequentialAgent`, `LoopAgent`, and `LlmAgent`. Start it alongside Next.js with `npm run dev:full`. When running, the Next.js API route automatically bridges to it.
 
 ```
-src/
-├── app/
-│   ├── api/orchestrate/route.ts    # API endpoint
-│   ├── layout.tsx                   # Root layout
-│   ├── page.tsx                     # Main SPA
-│   └── globals.css                  # Theme
-├── lib/
-│   ├── agents/
-│   │   ├── intake-agent.ts         # Multi-modal intake
-│   │   ├── cob-agent.ts            # COB analysis
-│   │   ├── verification-agent.ts   # Verification
-│   │   ├── output-agent.ts         # Output generation
-│   │   └── orchestrator-agent.ts   # Pipeline orchestrator
-│   ├── gemini/
-│   │   └── client.ts               # Gemini API wrapper
-│   ├── insurance/
-│   │   ├── mock-plans.ts           # Plan A & B definitions
-│   │   ├── deductible-calculator.ts# Deductible tracking
-│   │   └── cob-engine.ts           # COB calculation engine
-│   ├── medical/
-│   │   ├── code-lookup.ts          # CPT/ICD-10 database
-│   │   └── clinical-mapper.ts      # Text → code inference
-│   └── types/
-│       └── index.ts                 # Type definitions
-├── components/ui/                   # shadcn/ui components
-public/
-└── mock-data/
-    ├── user_query.txt               # Aarav's voice query
-    └── aarav_mri_report_text.txt    # MRI report text
+backend/
+├── agent.py           # ADK agents (IntakeAgent, COBAgent, ValidationLoop, OutputAgent)
+├── server.py          # FastAPI + SSE streaming
+├── requirements.txt   # google-adk, fastapi, uvicorn
+└── tools/
+    ├── math_tools.py        # Deterministic insurance math
+    ├── database_tools.py    # JSON database queries
+    ├── ocr_tools.py         # Gemini Vision extraction
+    ├── validation_tools.py  # LLM-as-judge checks
+    └── output_tools.py      # Letter + TTS generation
 ```
-
----
-
-## License
-
-MIT

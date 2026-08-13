@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:adk": "cd backend && pip install -r requirements.txt -q && python server.py",
+    "dev:full": "npm run dev:adk & npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
