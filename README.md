@@ -78,13 +78,19 @@ All insurance math is **deterministic TypeScript** — the LLM is never used for
 ## Test Coverage
 
 ```
- 5 test files | 63 tests | 0 failures
+TypeScript (Vitest) — 6 files | 77 tests | 0 failures
 
- ✓ src/lib/insurance/deductible-calculator.test.ts    (11 tests)
- ✓ src/lib/insurance/cob-engine.test.ts               (12 tests)
- ✓ src/lib/medical/clinical-mapper.test.ts            (18 tests)
- ✓ src/lib/agents/intake-agent.test.ts                (12 tests) — OCR schema validation
- ✓ src/lib/agents/verification-agent.test.ts          (10 tests) — math integrity + totals
+ ✓ src/lib/insurance/cob-engine.test.ts                (12 tests) — COB rules, birthday/subscriber rule
+ ✓ src/lib/insurance/deductible-calculator.test.ts     (11 tests) — deductible tracking, OOP caps
+ ✓ src/lib/medical/clinical-mapper.test.ts             (18 tests) — code inference, compatibility
+ ✓ src/lib/agents/intake-agent.test.ts                 (12 tests) — OCR schema validation
+ ✓ src/lib/agents/intake-ocr-integration.test.ts       (14 tests) — real file reads + pipeline
+ ✓ src/lib/agents/verification-agent.test.ts           (10 tests) — math integrity + reconciliation
+
+Python (pytest) — 1 file | 20 tests | 0 failures
+
+ ✓ backend/tests/test_math_tools.py                    (20 tests) — deductible, coinsurance,
+                                                                    OOP cap, COB rules, full calc
 ```
 
 ## Outputs
