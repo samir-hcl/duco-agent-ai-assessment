@@ -112,7 +112,7 @@ npm install
 # Set Gemini API key
 echo "GOOGLE_GEMINI_API_KEY=your_key" > .env.local
 
-# Run tests (63 tests)
+# Run all TypeScript tests (77 tests)
 npm test
 
 # Start dev server (Next.js only)
@@ -132,7 +132,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | AI/LLM | Gemini 2.0 Flash (Vision OCR + text reasoning + Judge) |
 | Agent Framework | Google ADK (Python backend) + TS State Machine (primary) |
 | Database | JSON mock database with REST API endpoints |
-| Testing | Vitest — 63 unit tests across 5 test files |
+| Testing | Vitest (77 TS tests, 6 files) + pytest (20 Python tests) = 97 total |
 | TTS | Web Speech API with section tracking |
 
 ## Python ADK Backend (Optional)
