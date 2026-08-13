@@ -19,23 +19,24 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ files }),
-        signal: AbortSignal.timeout(3000), // 3s timeout for health check/adk
+        signal: AbortSignal.timeout(3000),
       });
       if (adkRes.ok) {
         const adkData = await adkRes.json();
-        // Fallback to local TS orchestrator to construct full AgentContext if ADK returned raw logs
-        const context = await runOrchestrator(files);
-        context.logs.unshift({
-          timestamp: new Date().toISOString(),
-          agent: 'ADK_Bridge',
-          action: 'PYTHON_ADK_CONNECTED',
-          detail: '✅ Successfully connected to Google ADK Python backend (localhost:8000)',
-          status: 'success',
-        });
-        return NextResponse.json({ context });
+        if (adkData?.context?.state) {
+          // ADK returned a valid AgentContext — use it directly
+          adkData.context.logs.unshift({
+            timestamp: new Date().toISOString(),
+            agent: 'ADK_Bridge',
+            action: 'PYTHON_ADK_CONNECTED',
+            detail: '✅ Using Google ADK Python backend (localhost:8000)',
+            status: 'success',
+          });
+          return NextResponse.json({ context: adkData.context });
+        }
       }
     } catch {
-      // Python ADK server not running locally; continue with high-performance TS Orchestrator
+      // Python ADK server not running; fall through to TS orchestrator
     }
 
     const context = await runOrchestrator(files);
