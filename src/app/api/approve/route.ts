@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runOrchestratorPhase2 } from '@/lib/agents/orchestrator-agent';
 import { AgentContext } from '@/lib/types';
+import { requireAuth } from '@/lib/auth/middleware';
 
 /**
  * POST /api/approve
@@ -9,6 +10,10 @@ import { AgentContext } from '@/lib/types';
  * Only generates outputs (letters, financial summary, audio) if approved === true.
  */
 export async function POST(request: NextRequest) {
+  // Authentication: require valid API key for approval actions
+  const authError = requireAuth(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { context, approved } = body as { context: AgentContext; approved: boolean };

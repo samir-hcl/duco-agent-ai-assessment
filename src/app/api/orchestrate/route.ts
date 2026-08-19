@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runOrchestrator } from '@/lib/agents/orchestrator-agent';
 import { UploadedFile } from '@/lib/types';
+import { requireAuth } from '@/lib/auth/middleware';
 
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
+  // Authentication: require valid API key for pipeline execution
+  const authError = requireAuth(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const files: UploadedFile[] = body.files || [];

@@ -47,6 +47,15 @@ An **agentic AI system** that processes multi-modal medical documents (scanned i
 - **Human-in-the-Loop**: Two-phase execution (`/api/orchestrate` → `/api/approve`) with blocking approval gate
 - **ADK Bridge**: `route.ts` attempts Python Google ADK backend first, seamlessly falls back to TS orchestrator
 
+## Security & Authentication
+
+- **API Key Auth**: Mutation routes (`POST /api/orchestrate`, `POST /api/approve`) require a valid API key via `x-api-key` header or `Authorization: Bearer <key>`. Read-only routes (`GET /api/codes/*`) are public.
+- **Least-Privilege**: Only authenticated callers can trigger pipeline execution or approve/reject claims.
+- **Rate Limiting**: In-memory per-IP rate limiting (10 requests/minute) on mutation routes.
+- **Secrets Management**: API keys loaded exclusively from `process.env` (`.env.local`), never hardcoded. `.gitignore` excludes all `.env*` files.
+- **Dev Mode Bypass**: When no `DUCO_API_KEY` is configured, all requests are allowed with a logged security warning (to avoid blocking local development).
+- **Constant-Time Comparison**: API key validation uses constant-time comparison to prevent timing attacks.
+
 ## Mock Database & REST APIs
 
 All medical codes and rules are stored in JSON files (simulating a real database), queryable via REST APIs:
@@ -78,7 +87,7 @@ All insurance math is **deterministic TypeScript** — the LLM is never used for
 ## Test Coverage
 
 ```
-TypeScript (Vitest) — 6 files | 77 tests | 0 failures
+TypeScript (Vitest) — 7 files | 88 tests | 0 failures
 
  ✓ src/lib/insurance/cob-engine.test.ts                (12 tests) — COB rules, birthday/subscriber rule
  ✓ src/lib/insurance/deductible-calculator.test.ts     (11 tests) — deductible tracking, OOP caps
@@ -86,11 +95,13 @@ TypeScript (Vitest) — 6 files | 77 tests | 0 failures
  ✓ src/lib/agents/intake-agent.test.ts                 (12 tests) — OCR schema validation
  ✓ src/lib/agents/intake-ocr-integration.test.ts       (14 tests) — real file reads + pipeline
  ✓ src/lib/agents/verification-agent.test.ts           (10 tests) — math integrity + reconciliation
+ ✓ src/lib/agents/multi-turn-e2e.test.ts               (11 tests) — full orchestrate→approve pipeline,
+                                                                     auth/authorization, HITL gate
 
 Python (pytest) — 1 file | 20 tests | 0 failures
 
  ✓ backend/tests/test_math_tools.py                    (20 tests) — deductible, coinsurance,
-                                                                    OOP cap, COB rules, full calc
+                                                                     OOP cap, COB rules, full calc
 ```
 
 ## Outputs
@@ -112,7 +123,7 @@ npm install
 # Set Gemini API key
 echo "GOOGLE_GEMINI_API_KEY=your_key" > .env.local
 
-# Run all TypeScript tests (77 tests)
+# Run all TypeScript tests (88 tests)
 npm test
 
 # Start dev server (Next.js only)
@@ -132,7 +143,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | AI/LLM | Gemini 2.0 Flash (Vision OCR + text reasoning + Judge) |
 | Agent Framework | Google ADK (Python backend) + TS State Machine (primary) |
 | Database | JSON mock database with REST API endpoints |
-| Testing | Vitest (77 TS tests, 6 files) + pytest (20 Python tests) = 97 total |
+| Testing | Vitest (88 TS tests, 7 files) + pytest (20 Python tests) = 108 total |
 | TTS | Web Speech API with section tracking |
 
 ## Python ADK Backend (Optional)
